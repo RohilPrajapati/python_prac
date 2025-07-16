@@ -1,6 +1,6 @@
 import psycopg2
 import redis
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 import os
 
@@ -58,6 +58,28 @@ def get_user(user_id):
         "source":"db",
         "user":user
     })
+
+# Write Through Cache
+"""
+Concept
+- Write data to both DB and cache during creation/update
+"""
+
+@app.route('/user', methods=['POST'])
+def create_user():
+    try:
+        data = request.json
+        pg_cursor.execute("INSERT INTO users (id, name, email) VALUES (%s, %s, %s)",(data['id'], data['name'], data['email']))
+        pg_conn.commit()
+
+        key = f"user:{data['id']}"
+        r.hset(key,mapping=data)
+
+        return jsonify({"message":"User created"}), 201
+    except Exception as e:
+        pg_conn.rollback()  # VERY IMPORTANT
+        print("Query failed:", e)
+        return jsonify({"message":"Fail to create user"}),400
 
 if __name__ == '__main__':
     app.run(debug=True)
