@@ -65,7 +65,7 @@ Concept
 - Write data to both DB and cache during creation/update
 """
 
-@app.route('/user', methods=['POST'])
+@app.route('/user/', methods=['POST'])
 def create_user():
     try:
         data = request.json
@@ -80,6 +80,58 @@ def create_user():
         pg_conn.rollback()  # VERY IMPORTANT
         print("Query failed:", e)
         return jsonify({"message":"Fail to create user"}),400
+
+# Read Through cache(Middleware)
+"""
+Concept 
+Abstract caching into a middleware or decorator
+Cache hit = return from redis
+Cache miss = auto-lod from DB, store in Cache
+"""
+
+def redis_cache(key_prefix, ttl=60):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            # Get the ID from kwargs or args (assuming `user_id` is passed as keyword)
+            user_id = kwargs.get("user_id") or (args[0] if args else None)
+            if user_id is None:
+                return jsonify({"error": "Missing user_id"}), 400
+            key = f"{key_prefix}:{user_id}"
+            user = {}
+            if r.exists(key):
+                user = {k.decode(): v.decode() for k,v in r.hgetall(key).items()}
+                return jsonify({"source":"cache","user":user})
+            result = func(*args, **kwargs)
+            if isinstance(result, tuple) and result[1] == 200:
+                response_obj = result[0]
+                if hasattr(response_obj, 'get_json'):
+                    data = response_obj.get_json()
+                    user = data.get("user")
+                    if user:
+                        r.hset(key, mapping=user)
+                        r.expire(key, ttl)
+            return result
+        return wrapper
+    return decorator
+
+@app.route('/read-through/user/<int:user_id>/')
+@redis_cache("user")
+def get_user_decorated(user_id):
+    try:
+        pg_cursor.execute("SELECT id, name, email from users WHERE id = %s", (user_id,))
+        row = pg_cursor.fetchone()
+        if not row:
+            return jsonify({"error":"User not found"}), 404
+        
+        user = {"id":row[0], "name":row[1], "email":row[2]}
+        return jsonify({"source":"db", "user":user}), 200
+    except Exception as e:
+        pg_conn.rollback()  # VERY IMPORTANT
+        print("Query failed:", e)
+        return jsonify({"message":"Fail to create user"}),400
+
+        
+
 
 if __name__ == '__main__':
     app.run(debug=True)
