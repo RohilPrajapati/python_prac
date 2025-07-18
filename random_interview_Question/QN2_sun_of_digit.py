@@ -18,7 +18,7 @@ Example: 8993 should return 2
 #     else:
 #         return sum_of_digit(sum)
     
-# solution form chatgpt
+# solution from chatgpt
 def sum_of_digit(num):
     if num < 10:
         return num
