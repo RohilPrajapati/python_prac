@@ -15,4 +15,3 @@ def test_get_weather(mocker):
     # assertions
     assert result == {"temperature": 25, "condition": "Sunny"}
     mock_get.assert_called_once_with("https://api.weather.com/v1/Dubai")
- 
