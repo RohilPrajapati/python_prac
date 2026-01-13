@@ -1,6 +1,6 @@
 # old way
 # from typing import Optional
-from typing import NewType
+from typing import NewType, TypedDict
 
 
 def create_user_1(
@@ -20,7 +20,14 @@ def create_user_1(
 RGB = NewType("RGB", tuple[int, int, int])
 HSL = NewType("HSL", tuple[int, int, int])
 
-type User = dict[str, str | int | RGB | None]
+
+# type User = dict[str, str | int | RGB | None]
+class User(TypedDict):
+    first_name: str
+    last_name: str
+    email: str
+    age: int | None
+    fav_color: RGB | None
 
 
 def create_user(
