@@ -12,7 +12,7 @@ def get_user_service() -> UserService:
 
 
 @router.get("/users", response_model=list[UserRead])
-def get_user(service: UserService = Depends(get_user_service)):
+def get_users(service: UserService = Depends(get_user_service)):
     return service.list_users()
 
 
